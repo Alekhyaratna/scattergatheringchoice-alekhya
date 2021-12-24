@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="955ea4c5-4a41-4269-9c30-362f3fe07a4f" file="muledb properties\dev.yaml" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="fd955dec-f1b7-4053-876b-4d610993e4cd" >
+		<http:listener-connection host="0.0.0.0" port="${httpconn.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="131019e6-9ed1-4566-b415-791e569dc0fa" >
+		<db:mssql-connection host="${bikestoredb.host}" port="${bikestoredb.port}" user="${bikestoredb.user}" password="${secure::bikestoredb.password}" databaseName="${bikestoredb.dbName}"/>
+	</db:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="42f7f549-afa0-4daa-8c88-edc25e57f8be" file="muledb properties\dev.yaml" key="mulesoft@1234567" />
+	<file:config name="File_Config" doc:name="File Config" doc:id="748fd135-ecfb-4bc5-8454-da9af9fdc1cf" >
+		<file:connection workingDir="C:\Users\alekhyar\Documents\writefiles1" />
+	</file:config>
+	<flow name="scattergatheringchoice-alekhyaFlow" doc:id="9ce7cf4f-8eb2-4f16-a53c-9fbab573325b" >
+		<http:listener doc:name="Listener" doc:id="77941a64-dc91-4615-8021-4adcc4a68859" config-ref="HTTP_Listener_config" path="/scatterchoice"/>
+		<set-payload value="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  payload: attributes.queryParams.number as Number + 5 as Number&#10;}]" doc:name="Set Payload" doc:id="a4b18907-9e90-48b8-b2fc-6ffc4fbb11f2" />
+		<choice doc:name="Choice" doc:id="82fb3f9e-7c3d-4618-9c2a-65f8e1e0e8a4" >
+			<when expression="#[attributes.queryParams.number &gt; 7]">
+				<scatter-gather doc:name="Scatter-Gather" doc:id="86cfc58d-7bc0-4b2c-b265-7e58c0fe703d" >
+					<route >
+						<set-payload value="#[payload]" doc:name="Set Payload" doc:id="ac121870-d626-4ce6-8276-729251e27e17" />
+					</route>
+					<route >
+						<file:write doc:name="Write" doc:id="52cefcf8-3050-437a-b3fd-85f4ddf1e816" config-ref="File_Config" path="C:\Users\alekhyar\Documents\writefiles1\numberfile1.txt" mode="CREATE_NEW">
+							<file:content ><![CDATA[#[payload ++ " "++ "this number is greater than 8"]]]></file:content>
+						</file:write>
+					</route>
+					<route >
+						<db:insert doc:name="Insert" doc:id="4ae98e6c-348e-48fb-a81b-09b422db257c" config-ref="Database_Config">
+							<db:sql ><![CDATA[insert into production.categories (category_name) values ('scatter')]]></db:sql>
+						</db:insert>
+					</route>
+				</scatter-gather>
+				<set-payload value="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" doc:name="aggregator" doc:id="6f34518a-cdd9-4461-bc32-a5403bf2707d" />
+				<logger level="INFO" doc:name="Logger" doc:id="67bae8b0-972b-4645-a928-116cb81fc926" message="#[payload]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="33b0fb96-8503-4f66-9b58-2782b3657c1e" message="number is less than 7"/>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
